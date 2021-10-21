@@ -1,6 +1,7 @@
-
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
+#include <DNSServer.h>
+#include <WiFiManager.h>
 
 const char* ssid         = "floor_1";
 const char* password     = "83005097";
