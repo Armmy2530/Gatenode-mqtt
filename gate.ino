@@ -77,7 +77,7 @@ void initMQTTClient() {
       }
       serial_raw = Serial.readStringUntil('\n');
       if(serial_raw.equals("reset ap")){
-      wifiManager.resetSettings();
+        wifiManager.resetSettings();
       }
       delay(2000);
     }
