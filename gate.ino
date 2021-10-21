@@ -3,8 +3,8 @@
 #include <DNSServer.h>
 #include <WiFiManager.h>
 
-const char* ssid         = "";
-const char* password     = "";
+const char* ssid         = "floor_1";
+const char* password     = "83005097";
 const char* mqttServer   = "192.168.2.56";
 const int  mqttPort     = 1883;
 const char* mqttUser     = "armmy2530";
@@ -19,7 +19,6 @@ PubSubClient mqttClient(wifiClient);
 WiFiManager wifiManager;
 
 bool shouldSaveConfig1 = false;
-String serial_raw = "";
 void saveConfigCallback1 () {
   shouldSaveConfig1 = true;
   Serial.println("Should save  All Data config");
@@ -30,9 +29,9 @@ void initWifiStation() {
   WiFiManagerParameter custom_text0 ( " <label> ป้อน MQTT IP </label> " );
   WiFiManagerParameter custom_text1 ( " <label> ป้อน MQTT USERNAME </label> " );
   WiFiManagerParameter custom_text2 ( " <label> ป้อน MQTT PASSWORD </label> " );
-  WiFiManagerParameter custom_mqtt_ip("LINE", "line_token", mqttServer, 15);
-  WiFiManagerParameter custom_mqtt_username("latitude", "latitude", mqttUser, 15);
-  WiFiManagerParameter custom_mqtt_password("longitude", "longitude", mqttPassword, 30);
+  WiFiManagerParameter custom_mqtt_ip("LINE", "", mqttServer, 20);
+  WiFiManagerParameter custom_mqtt_username("latitude", "", mqttUser, 20);
+  WiFiManagerParameter custom_mqtt_password("longitude", "", mqttPassword, 30);
   wifiManager.setSaveConfigCallback(saveConfigCallback1);
   wifiManager.addParameter (& custom_text);
   wifiManager.addParameter (& custom_text0);
@@ -42,7 +41,6 @@ void initWifiStation() {
   wifiManager.addParameter (& custom_text2);
   wifiManager.addParameter(&custom_mqtt_password);
   delay(1000);
-
   Serial.print("\nConnecting to WiFi");
   if (!wifiManager.autoConnect("Gatenode__config AP")) {
       Serial.println("failed to connect and hit timeout");
@@ -54,47 +52,37 @@ void initWifiStation() {
   mqttServer = custom_mqtt_ip.getValue();
   mqttUser = custom_mqtt_username.getValue();
   mqttPassword = custom_mqtt_password.getValue();
-  Serial.println(String("\nConnected to the WiFi network (") + ssid + ")" );
-  Serial.println("Mqtt ip: "+ String(mqttServer));
-  Serial.println("Mqtt username: "+ String(mqttUser));
-  Serial.println("Mqtt password: "+ String(mqttPassword));
-}
-
-void initMQTTClient() {
-
-  // Connecting to MQTT server
+  delay(1000);
+  
+  delay(100);
   mqttClient.setServer(mqttServer, mqttPort);
   mqttClient.setCallback(PubSubCallback);
   while (!mqttClient.connected()) {
-    Serial.println(String("Connecting to MQTT (") + mqttServer + ")...");
-    if (mqttClient.connect("ESP8266Client", mqttUser, mqttPassword)) {
+    delay(100);
+    Serial.println("Connecting to MQTT (" + String(mqttServer) + ") ...");
+    if (mqttClient.connect("Gatenode_mk3", mqttUser, mqttPassword)) {
       Serial.println("MQTT client connected");
-    } else {
+    } 
+    else {
       Serial.print("\nFailed with state ");
       Serial.println(mqttClient.state());
-      if (WiFi.status() != WL_CONNECTED) {
-        initWifiStation();
+        if (WiFi.status() != WL_CONNECTED) {
+          initWifiStation();
+        }
       }
-      serial_raw = Serial.readStringUntil('\n');
-      if(serial_raw.equals("reset ap")){
-        wifiManager.resetSettings();
-      }
-      delay(2000);
-    }
+    delay(2000);
   }
-
   // Declare Pub/Sub topics
   mqttClient.publish(PUB_GPIO2_STATUS, "off");
   mqttClient.subscribe(SUB_GPIO2_ACTION);
 }
 
-void PubSubCallback(char* topic, byte* payload, unsigned int length) {
 
+void PubSubCallback(char* topic, byte* payload, unsigned int length) {
   String strTopicGpio2Action = SUB_GPIO2_ACTION;
   String strPayload = "";
   String strON = "on";
   String strOFF = "off";
-
   Serial.print("Topic:");
   Serial.println(topic);
   Serial.print("Message:");
@@ -108,32 +96,25 @@ void PubSubCallback(char* topic, byte* payload, unsigned int length) {
   if (strTopicGpio2Action == topic) {
     if (strON == strPayload) {
       mqttClient.publish(PUB_GPIO2_STATUS, "on");
-      digitalWrite(GPIO2_LED, LOW);
-      delay(500);
       digitalWrite(GPIO2_LED, HIGH);
+      delay(500);
+      digitalWrite(GPIO2_LED, LOW);
       Serial.println("gate opening");
       mqttClient.publish(PUB_GPIO2_STATUS, "off");
     } else if (strOFF == strPayload) {
-      digitalWrite(GPIO2_LED, HIGH);
+      digitalWrite(GPIO2_LED, LOW);
     }
   }
 }
-
+String serial_raw ;
 void setup() {
-
   Serial.begin(115200);
-  // GPIO2 is set OUTPUT
   pinMode(GPIO2_LED, OUTPUT);
-  digitalWrite(GPIO2_LED, HIGH);
+  digitalWrite(GPIO2_LED, LOW);
   initWifiStation();
-  initMQTTClient();
-
 }
 
 void loop() {
   mqttClient.loop();
-  serial_raw = Serial.readStringUntil('\n');
-  if(serial_raw.equals("reset ap")){
-    wifiManager.resetSettings();
-  }
+  delay(100);
 }
