@@ -72,9 +72,12 @@ void initMQTTClient() {
     } else {
       Serial.print("\nFailed with state ");
       Serial.println(mqttClient.state());
-
       if (WiFi.status() != WL_CONNECTED) {
         initWifiStation();
+      }
+      serial_raw = Serial.readStringUntil('\n');
+      if(serial_raw.equals("reset ap")){
+      wifiManager.resetSettings();
       }
       delay(2000);
     }
@@ -130,7 +133,7 @@ void setup() {
 void loop() {
   mqttClient.loop();
   serial_raw = Serial.readStringUntil('\n');
-  if(serial_raw == "reset ap"){
+  if(serial_raw.equals("reset ap")){
     wifiManager.resetSettings();
   }
 }
