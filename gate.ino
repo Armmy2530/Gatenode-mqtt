@@ -1,8 +1,13 @@
-#include <ESP8266WiFi.h>
+#define WEBSERVER_H
+
 #include <PubSubClient.h>
+#include <ESP8266WiFi.h>
 #include <DNSServer.h>
 #include <WiFiManager.h>
 #include <EEPROM.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <AsyncElegantOTA.h>
 
 const char* ssid         = "floor_1";
 const char* password     = "83005097";
@@ -14,13 +19,17 @@ unsigned long int currentTime = millis();
 unsigned long int previousTime = 0;
 String currentMode = "online";
 #define PUB_GPIO2_CONNECTION "tele/gatenode/LWT"
+#define PUB_GPIO2_VERSION "tele/gatenode/version"
 #define PUB_GPIO2_MODE "stat/gatenode/mode"
+#define PUB_GPIO2_ACTIVE "stat/gatenode/active"
 #define SUB_GPIO2_ACTION "cmnd/gatenode"
+#define Version "0.5.3"
 #define GPIO2_LED 3
 
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 WiFiManager wifiManager;
+AsyncWebServer server(80);
 
 bool shouldSaveConfig1 = false;
 void saveConfigCallback1 () {
@@ -76,9 +85,30 @@ void initWifiStation() {
     delay(2000);
   }
   // Declare Pub/Sub topics
+  AsyncElegantOTA.begin(&server); 
+  server.begin();
+  Serial.println("HTTP server started");
   mqttClient.subscribe(SUB_GPIO2_ACTION);
+  mqttClient.publish(PUB_GPIO2_MODE, "deactive");
 }
-
+void checkconnection(){
+  while (!mqttClient.connected()) {
+    delay(100);
+    Serial.println("Connecting to MQTT (" + String(mqttServer) + ") ...");
+    if (mqttClient.connect("Gatenode_mk3", mqttUser, mqttPassword,PUB_GPIO2_CONNECTION,0,true,"Offline")) {
+      Serial.println("MQTT client connected");
+      mqttClient.publish(PUB_GPIO2_CONNECTION, "Online",true);
+    } 
+    else {
+      Serial.print("\nFailed with state ");
+      Serial.println(mqttClient.state());
+        if (WiFi.status() != WL_CONNECTED) {
+          initWifiStation();
+        }
+      }
+    delay(2000);
+  }
+}
 
 void PubSubCallback(char* topic, byte* payload, unsigned int length) {
   String strTopicGpio2Action = SUB_GPIO2_ACTION;
@@ -99,9 +129,11 @@ void PubSubCallback(char* topic, byte* payload, unsigned int length) {
 
   if (strTopicGpio2Action == topic) {
     if (strON == strPayload && currentMode == strOnline) {
+      mqttClient.publish(PUB_GPIO2_MODE, "active");
       digitalWrite(GPIO2_LED, HIGH);
       delay(500);
       digitalWrite(GPIO2_LED, LOW);
+      mqttClient.publish(PUB_GPIO2_MODE, "deactive");
       Serial.println("gate opening");
     } 
     else if (strON == strPayload && currentMode == strOffline) {
@@ -130,20 +162,26 @@ void PubSubCallback(char* topic, byte* payload, unsigned int length) {
     }
     else if (strPayload == "restart"){
       Serial.println("restart");
+      mqttClient.publish(PUB_GPIO2_CONNECTION, "Offline");
       delay(100);
       ESP.reset();
     }
   }
 }
+
+
 void setup() {
   Serial.begin(115200);
   pinMode(GPIO2_LED, OUTPUT);
   digitalWrite(GPIO2_LED, LOW);
+  Serial.println("version: "+ String(Version));
   initWifiStation();
+  mqttClient.publish(PUB_GPIO2_VERSION, Version);
 }
 
 void loop() {
   mqttClient.loop();
-  delay(100);
+  checkconnection();
+  AsyncElegantOTA.loop();
   currentTime = millis();
 }
