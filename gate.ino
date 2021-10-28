@@ -129,11 +129,11 @@ void PubSubCallback(char* topic, byte* payload, unsigned int length) {
 
   if (strTopicGpio2Action == topic) {
     if (strON == strPayload && currentMode == strOnline) {
-      mqttClient.publish(PUB_GPIO2_MODE, "active");
+      mqttClient.publish(PUB_GPIO2_ACTIVE, "active");
       digitalWrite(GPIO2_LED, HIGH);
       delay(500);
       digitalWrite(GPIO2_LED, LOW);
-      mqttClient.publish(PUB_GPIO2_MODE, "deactive");
+      mqttClient.publish(PUB_GPIO2_ACTIVE, "deactive");
       Serial.println("gate opening");
     } 
     else if (strON == strPayload && currentMode == strOffline) {
